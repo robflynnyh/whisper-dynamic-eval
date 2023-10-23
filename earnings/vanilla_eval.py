@@ -6,9 +6,15 @@ from whisper.normalizers import EnglishTextNormalizer
 normalize = EnglishTextNormalizer()
 import whisper
 
-TEST_PATH = '/mnt/parscratch/users/acp21rjf/earnings22/test_original'
-DEV_PATH = '/mnt/parscratch/users/acp21rjf/earnings22/dev_original'
-ALL_TEXT_PATH = '/mnt/parscratch/users/acp21rjf/earnings22/full_transcripts.json'
+import sys
+sys.path.append('../')
+from lib import get_path
+
+earnings_base_path = get_path('earnings_base_path')
+
+TEST_PATH = os.path.join(earnings_base_path, 'test_original')
+DEV_PATH = os.path.join(earnings_base_path, 'dev_original')
+ALL_TEXT_PATH = os.path.join(earnings_base_path, 'full_transcripts.json')
 
 def fetch_data(audio_path:str = TEST_PATH, txt_path:str = ALL_TEXT_PATH):
     with open(txt_path, 'r') as f:
@@ -77,7 +83,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model', type=str, default='small.en', help='Whisper model name')
+    parser.add_argument('-m', '--model', type=str, default='base.en', help='Whisper model name')
 
     parser.add_argument('-split', '--split', type=str, default='test', help='test or dev split')
 
