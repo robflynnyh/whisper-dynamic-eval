@@ -7,9 +7,12 @@ from lcasr.eval.wer import word_error_rate_detail
 from whisper.normalizers import EnglishTextNormalizer
 normalize = EnglishTextNormalizer()
 import whisper
+from madgrad import MADGRAD
+from functools import partial
+from lcasr.utils.augmentation import SpecAugment
 
 from lib import get_path, get_args
-from transcribe import transcribe
+from transcribe import meta_transcribe
 earnings_base_path = get_path('earnings_base_path')
 
 TEST_PATH = os.path.join(earnings_base_path, 'test_original')
@@ -57,6 +60,15 @@ def main(args):
     
     audio_files, text_files = fetch_data(audio_path=data_path, txt_path=ALL_TEXT_PATH)
     meetings_keys = [el['meeting'] for el in audio_files]
+    optimizer, optimizer_config, augment_n_samples = MADGRAD, {'lr': 1e-8}, 2
+    augmentation_fn = SpecAugment(**{
+        'n_time_masks': 2,
+        'n_freq_masks': 3,
+        'freq_mask_param': 42,
+        'time_mask_param': -1,
+        'min_p': 0.05,
+        'zero_masking': False,
+    })
 
     all_texts = []
     all_golds = []
@@ -70,14 +82,22 @@ def main(args):
         assert cur_meetings == text_files[rec]['meeting'] and audio_files[rec]['meeting'] == text_files[rec]['meeting'], \
             f'Meeting names do not match: {cur_meetings}, {text_files[rec]["meeting"]}, {audio_files[rec]["meeting"]}'
 
-        #result = model.transcribe(cur_audio)
-        result = transcribe(model, cur_audio, verbose=args.verbose)
+        result = meta_transcribe(
+            model, 
+            cur_audio,
+            augmentation_fn=augmentation_fn, 
+            optimizer=optimizer, 
+            optimizer_config=optimizer_config, 
+            augment_n_samples=augment_n_samples, 
+            verbose=args.verbose
+        )
         out_text = result['text']
         out_text = normalize(out_text).lower()
         print(cur_text, '\n', out_text, '\n\n')
 
         all_texts.append(out_text)
         all_golds.append(cur_text)
+        break
 
     wer, words, ins_rate, del_rate, sub_rate = word_error_rate_detail(hypotheses=all_texts, references=all_golds)
     print(f'WER: {wer}')
